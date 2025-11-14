@@ -25,13 +25,15 @@ MAX_SHARD = 1822 # the last datashard is shard_01822.parquet
 index_to_filename = lambda index: f"shard_{index:05d}.parquet" # format of the filenames
 base_dir = get_base_dir()
 DATA_DIR = os.path.join(base_dir, "base_data")
+CONTRACT_DATA_DIR = os.path.join(base_dir, "contract_data")
 os.makedirs(DATA_DIR, exist_ok=True)
+os.makedirs(CONTRACT_DATA_DIR, exist_ok=True)
 
 # -----------------------------------------------------------------------------
 # These functions are useful utilities to other modules, can/should be imported
 
 def list_parquet_files(data_dir=None):
-    """ Looks into a data dir and returns full paths to all parquet files. """
+    """Looks into a data dir and returns full paths to all parquet files."""
     data_dir = DATA_DIR if data_dir is None else data_dir
     parquet_files = sorted([
         f for f in os.listdir(data_dir)
@@ -40,14 +42,18 @@ def list_parquet_files(data_dir=None):
     parquet_paths = [os.path.join(data_dir, f) for f in parquet_files]
     return parquet_paths
 
-def parquets_iter_batched(split, start=0, step=1):
+def list_contract_parquet_files():
+    """Helper that lists parquet files from the contract corpus cache."""
+    return list_parquet_files(CONTRACT_DATA_DIR)
+
+def parquets_iter_batched(split, start=0, step=1, data_dir=None):
     """
     Iterate through the dataset, in batches of underlying row_groups for efficiency.
     - split can be "train" or "val". the last parquet file will be val.
     - start/step are useful for skipping rows in DDP. e.g. start=rank, step=world_size
     """
     assert split in ["train", "val"], "split must be 'train' or 'val'"
-    parquet_paths = list_parquet_files()
+    parquet_paths = list_parquet_files(data_dir=data_dir)
     parquet_paths = parquet_paths[:-1] if split == "train" else parquet_paths[-1:]
     for filepath in parquet_paths:
         pf = pq.ParquetFile(filepath)
@@ -55,6 +61,10 @@ def parquets_iter_batched(split, start=0, step=1):
             rg = pf.read_row_group(rg_idx)
             texts = rg.column('text').to_pylist()
             yield texts
+
+def contract_parquets_iter_batched(split, start=0, step=1):
+    """Same as parquets_iter_batched but wired to the contract corpus cache."""
+    return parquets_iter_batched(split, start=start, step=step, data_dir=CONTRACT_DATA_DIR)
 
 # -----------------------------------------------------------------------------
 def download_single_file(index):

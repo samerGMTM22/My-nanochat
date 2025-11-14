@@ -7,7 +7,16 @@ from nanochat.common import get_dist_info
 from nanochat.dataset import list_parquet_files
 from nanochat.tokenizer import get_tokenizer
 
-def tokenizing_distributed_data_loader_with_state(B, T, split, tokenizer_threads=4, tokenizer_batch_size=128, device="cuda", resume_state_dict=None):
+def tokenizing_distributed_data_loader_with_state(
+    B,
+    T,
+    split,
+    tokenizer_threads=4,
+    tokenizer_batch_size=128,
+    device="cuda",
+    data_dir=None,
+    resume_state_dict=None,
+):
     """
     Stream pretraining text from parquet files, tokenize, yield training batches.
 
@@ -25,7 +34,7 @@ def tokenizing_distributed_data_loader_with_state(B, T, split, tokenizer_threads
     # infinite iterator over document batches (list of text strings)
     ddp, ddp_rank, ddp_local_rank, ddp_world_size = get_dist_info()
     def document_batches():
-        parquet_paths = list_parquet_files()
+        parquet_paths = list_parquet_files(data_dir=data_dir)
         parquet_paths = parquet_paths[:-1] if split == "train" else parquet_paths[-1:]
         resume_pq_idx = resume_state_dict["pq_idx"] if resume_state_dict is not None else 0
         resume_rg_idx = resume_state_dict["rg_idx"] if resume_state_dict is not None else None

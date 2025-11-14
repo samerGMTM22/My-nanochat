@@ -1,8 +1,53 @@
-# nanochat
+# nanochat-contracts
 
 ![nanochat logo](dev/nanochat.png)
 
-> The best ChatGPT that $100 can buy.
+> Contract intelligence tuned from the nanochat stack.
+
+`nanochat-contracts` is a specialization of Andrej Karpathy's original
+[nanochat](https://github.com/karpathy/nanochat) project. It preserves the
+full-stack, hackable training pipeline while swapping the midtraining and SFT
+phases for procurement/contract analytics datasets. The result is a lightweight
+LLM that stays grounded in the general-domain FineWeb-Edu base pretraining but
+speaks the language of supply agreements, risk clauses, and vendor onboarding.
+
+Throughout this README we use the name `nanochat-contracts` when referring to
+this fork and `nanochat` when referencing the upstream project mechanics.
+
+## Contract-focused pipeline
+
+1. **Base pretraining (unchanged):** We still tokenize and pretrain on the
+   FineWeb-Edu 100B shuffle shards via `scripts/base_train.py`.
+2. **Domain midtraining:** `dev/prepare_contract_corpus.py` repackages the
+   [`pile-of-law/pile-of-law`](https://huggingface.co/datasets/pile-of-law/pile-of-law)
+   `atticus_contracts` subset into ~250M character shards placed under
+   `~/.cache/nanochat/contract_data`. `scripts/contract_mid_train.py` streams
+   those shards with the same Muon/AdamW setup as the default midtraining
+   script, letting the model absorb procurement boilerplate, indemnity clauses,
+   and SLA definitions.
+3. **Contract SFT:** `dev/prepare_cuad_sft.py` converts the
+   [`theatticusproject/cuad-qa`](https://huggingface.co/datasets/theatticusproject/cuad-qa)
+   question-answer annotations into chat-style JSONL stored at
+   `~/.cache/nanochat/cuad_sft_conversations.jsonl`. `scripts/chat_sft.py` now
+   mixes that supervision into the downstream conversational cocktail.
+
+The aggregate target corpus (~25–30B characters) maintains the original
+Chinchilla-friendly schedule but shifts the mid/SFT phases toward real contract
+analysis tasks such as highlighting exclusivity windows or summarizing price
+escalation terms.
+
+### Sample contract QA conversation
+
+```
+User  : Please review the clause below and explain whether the supplier can unilaterally change pricing.
+
+Clause: Supplier may propose price adjustments once per calendar year. Any change is subject to Customer's written approval.
+
+nanochat-contracts: Pricing cannot change unilaterally; the supplier must submit a request and the customer has to approve it in writing.
+```
+
+*Data sources: [`pile-of-law/pile-of-law`](https://huggingface.co/datasets/pile-of-law/pile-of-law)
+`atticus_contracts` subset and [`theatticusproject/cuad-qa`](https://huggingface.co/datasets/theatticusproject/cuad-qa).* 
 
 This repo is a full-stack implementation of an LLM like ChatGPT in a single, clean, minimal, hackable, dependency-lite codebase. nanochat is designed to run on a single 8XH100 node via scripts like [speedrun.sh](speedrun.sh), that run the entire pipeline start to end. This includes tokenization, pretraining, finetuning, evaluation, inference, and web serving over a simple UI so that you can talk to your own LLM just like ChatGPT. nanochat will become the capstone project of the course LLM101n being developed by Eureka Labs.
 

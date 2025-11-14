@@ -19,7 +19,7 @@ python -m nanochat.report reset
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 source "$HOME/.cargo/env"
 uv run maturin develop --release --manifest-path rustbpe/Cargo.toml
-curl -L -o $NANOCHAT_BASE_DIR/identity_conversations.jsonl https://karpathy-public.s3.us-west-2.amazonaws.com/identity_conversations.jsonl
+python dev/prepare_contract_corpus.py
 
 # train tokenizer on ~4B characters and kick off download of the rest for pretraining
 python -m nanochat.dataset -n 16
@@ -80,10 +80,11 @@ torchrun --standalone --nproc_per_node=$NPROC_PER_NODE -m scripts.base_eval
 
 # midtrain
 # NOTE: ensure that we use the same device_batch_size here as the base training script.
-torchrun --standalone --nproc_per_node=$NPROC_PER_NODE -m scripts.mid_train -- --device_batch_size=8 --run=$WANDB_RUN
+torchrun --standalone --nproc_per_node=$NPROC_PER_NODE -m scripts.contract_mid_train -- --device_batch_size=8 --run=$WANDB_RUN
 torchrun --standalone --nproc_per_node=$NPROC_PER_NODE -m scripts.chat_eval -- -i mid
 
 # sft
+python dev/prepare_cuad_sft.py
 torchrun --standalone --nproc_per_node=$NPROC_PER_NODE -m scripts.chat_sft -- --run=$WANDB_RUN
 torchrun --standalone --nproc_per_node=$NPROC_PER_NODE -m scripts.chat_eval -- -i sft
 
